@@ -1,5 +1,7 @@
 # alpine-vde-router
 
+📄 Project page: **[Networking for Windows 98, Mac OS 9 and DOS: SMB1, AFP, NAT and a PDF printer on Alpine Linux](https://zirize.github.io/alpine-vde-router/)** · More projects: **[zirize.github.io](https://zirize.github.io/)**
+
 A small Alpine Linux appliance that gives obsolete computers a network they can
 actually use: **DHCP, DNS, NAT, FTP, SMB1, AppleTalk-era AFP, a PDF printer and
 an mTCP NetDrive disk server** — all with guest access, because a 1996 machine

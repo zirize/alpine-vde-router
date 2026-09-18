@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Networking for Windows 98, Mac OS 9 and DOS: SMB1, AFP, NAT and a PDF printer on Alpine Linux</title>
+<meta name="description" content="A small Alpine Linux appliance that gives obsolete computers a usable network: DHCP, DNS and NAT, guest SMB1 shares Windows 98 can open, AFP for classic Mac OS, an IPP/LPD printer that writes PDF files, and mTCP NetDrive for DOS. Runs in a VM or on real hardware, with a VDE switch for QEMU and 86Box." />
+<meta name="author" content="zirize" />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://zirize.github.io/alpine-vde-router/" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://zirize.github.io/alpine-vde-router/" />
+<meta property="og:title" content="Networking for Windows 98, Mac OS 9 and DOS on Alpine Linux" />
+<meta property="og:description" content="An Alpine Linux appliance with DHCP, DNS, NAT, SMB1, AFP, FTP, a PDF print queue and mTCP NetDrive — the services old machines understand, on a network of their own." />
+<meta name="twitter:card" content="summary" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Networking for Windows 98, Mac OS 9 and DOS on Alpine Linux",
+  "description": "How to build a small Alpine Linux router and file server for obsolete computers: DHCP, DNS, NAT, guest SMB1 for Windows 9x, AFP for classic Mac OS, anonymous FTP, IPP and LPD printing to PDF, and mTCP NetDrive for DOS.",
+  "url": "https://zirize.github.io/alpine-vde-router/",
+  "author": { "@type": "Person", "name": "zirize", "url": "https://github.com/zirize" },
+  "about": ["Alpine Linux", "retrocomputing", "SMB1", "netatalk", "AFP", "dnsmasq", "CUPS", "mTCP NetDrive", "VDE", "QEMU", "86Box", "Windows 98", "Mac OS 9", "MS-DOS"]
+}
+</script>
+<style>
+:root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3148;--accent:#7c6af7;--accent2:#56c8a0;--text:#e2e4ef;--muted:#8b90b0;--radius:10px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;font-size:16px;min-height:100vh;display:flex;flex-direction:column}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:linear-gradient(135deg,#1a1d27 0%,#12141e 100%);border-bottom:1px solid var(--border);padding:56px 20px 44px;text-align:center}
+header h1{font-size:clamp(1.6rem,4vw,2.4rem);font-weight:700;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px}
+header p{font-size:1.05rem;color:var(--muted);max-width:620px;margin:0 auto 22px}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btns a{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:.9rem;font-weight:500}
+.btns a:hover{text-decoration:none;border-color:var(--accent)}
+.btns a.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+main{max-width:820px;margin:0 auto;padding:48px 20px;flex:1}
+h2{font-size:1.35rem;margin:44px 0 14px;color:var(--text)}
+h2:first-child{margin-top:0}
+h3{font-size:1.05rem;margin:28px 0 10px;color:var(--accent2)}
+p{margin-bottom:14px;color:var(--text)}
+ul,ol{margin:0 0 16px 22px}
+li{margin-bottom:8px}
+code{font-family:ui-monospace,'Cascadia Code',Menlo,monospace;font-size:.88em;background:#12141e;border:1px solid var(--border);border-radius:5px;padding:1px 6px}
+pre{background:#12141e;border:1px solid var(--border);border-radius:var(--radius);padding:16px;overflow-x:auto;margin-bottom:16px}
+pre code{background:none;border:none;padding:0;font-size:.85rem;line-height:1.6}
+table{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:.92rem}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:.82rem;text-transform:uppercase;letter-spacing:.5px}
+.symptoms{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent2);border-radius:var(--radius);padding:20px 24px 8px;margin-bottom:8px}
+.note{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;font-size:.93rem;color:var(--muted)}
+.note strong{color:var(--text)}
+footer{text-align:center;padding:32px 20px;border-top:1px solid var(--border);color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>A network old computers can actually use</h1>
+  <p>An Alpine Linux appliance that hands a Windows 98, Mac OS 9 or DOS machine the services it was built for — DHCP, DNS, NAT, guest SMB1, AFP, FTP, a printer that writes PDFs — on a network of its own.</p>
+  <div class="btns">
+    <a class="primary" href="https://github.com/zirize/alpine-vde-router">Repository on GitHub</a>
+    <a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/01-overview.md">Documentation</a>
+  </div>
+</header>
+<main>
+
+<div class="symptoms">
+<p>If you landed here from a search engine, one of these is probably your problem:</p>
+<ul>
+<li>Windows 98 or Windows for Workgroups <strong>cannot see your file server</strong>, because <strong>SMB1 is disabled</strong> on every modern operating system and the NTLMv1 authentication it offers is refused.</li>
+<li>Mac OS 9 has <strong>no way to mount anything</strong> — AppleTalk is gone, and macOS stopped serving AFP years ago.</li>
+<li>A DOS machine needs a disk or a file share, but a 286 with 640&nbsp;KB of RAM <strong>has no room for a network stack</strong>.</li>
+<li>Old software wants to <strong>print</strong>, and there is no driver on earth for your current printer.</li>
+<li>You do not want a 1998 machine, with no patches since 1998, <strong>sitting on your real LAN</strong>.</li>
+<li>Your emulator — QEMU, 86Box, PCem — can only reach the outside world through a <strong>root-owned bridge or TAP device</strong> you would rather not create.</li>
+</ul>
+</div>
+
+<h2>What it builds</h2>
+
+<p>One small Linux machine with two network interfaces. The <strong>uplink</strong> faces the network you already have and takes its Internet access from your ordinary router. The <strong>isolated</strong> side faces the old machines, and nothing from outside can reach in.</p>
+
+<pre><code>                Internet
+                    │
+          your existing router
+                    │
+        ┌───────────┴────────────┐
+        │  uplink (eth0)         │
+        │                        │
+        │   alpine-vde-router    │   DHCP · DNS · NAT
+        │                        │   FTP · SMB · AFP
+        │  isolated (eth1)       │   IPP/LPD → PDF
+        └───────────┬────────────┘   NetDrive
+                    │  10.1.0.0/24
+    ┌───────────┬───┴────┬───────────┬──────────┐
+  Win98       WinXP   Mac OS 9      DOS      anything</code></pre>
+
+<p>On the isolated side the appliance is the router (<code>10.1.0.1</code> by default), the DHCP server, the DNS server, the file server and the print server at once. An old machine needs no configuration beyond &ldquo;obtain an address automatically&rdquo;.</p>
+
+<table>
+<tr><th>service</th><th>port</th><th>used by</th></tr>
+<tr><td>DHCP</td><td>67/udp</td><td>everything</td></tr>
+<tr><td>DNS</td><td>53</td><td>everything</td></tr>
+<tr><td>NAT</td><td>&mdash;</td><td>everything that wants the Internet</td></tr>
+<tr><td>FTP (anonymous)</td><td>21 + 10000&ndash;10100</td><td>DOS, Windows, anything scriptable</td></tr>
+<tr><td>SMB / CIFS (SMB1)</td><td>139, 445</td><td>Windows for Workgroups 3.11, 95, 98, ME, NT, 2000, XP</td></tr>
+<tr><td>AFP</td><td>548</td><td>Mac OS 8, 9, and OS X</td></tr>
+<tr><td>IPP printing &rarr; PDF</td><td>631</td><td>Windows 98 and later, Linux</td></tr>
+<tr><td>LPD printing &rarr; PDF</td><td>515</td><td>classic Mac OS, and anything with only LPR</td></tr>
+<tr><td>NetDrive</td><td>2002/udp</td><td>DOS, as a network hard disk</td></tr>
+</table>
+
+<h2>One directory, three protocols</h2>
+
+<p>FTP, SMB1 and AFP all serve the same directory, so a Windows 98 box, a Mac OS 9 box and a DOS box are looking at the same files through whichever protocol each of them was born with. Drop a read-only folder underneath the share root and it appears in all three at once; on a VM those are usually virtiofs mounts from the host.</p>
+
+<p>Every file service is <strong>guest access with no password</strong>, mapped onto a single Unix account. That is a deliberate choice, not a shortcut.</p>
+
+<div class="note"><strong>Why no passwords.</strong> Windows 98 can only do SMB1 with NTLMv1. Mac OS 9 does AFP with cleartext or DHX. Neither is something to authenticate against with a password you use anywhere else, and most of these clients cannot store a modern one anyway. <strong>The security boundary in this design is the network, not the login</strong> — the firewall accepts SSH on the uplink and nothing else, and the isolated side is a cul-de-sac. Do not port-forward anything to it from your real router.</div>
+
+<h2>A printer that produces files</h2>
+
+<p>CUPS with the PDF backend gives the isolated network a queue reachable over <strong>IPP</strong> (port 631, for Windows 98 and later) and <strong>LPD</strong> (port 515, for classic Mac OS and anything that only speaks LPR). Print jobs land in the spool directory as PDF files &mdash; and because that directory is also shared over SMB and AFP, the same old machine can print a document and then pick up its own PDF.</p>
+
+<div class="note"><strong>A trap worth knowing about:</strong> without <code>SystemGroup sys root lpadmin</code> in <code>/etc/cups/cups-files.conf</code>, running <code>lpadmin</code> from a root shell is refused with <code>403 Forbidden</code> &mdash; a baffling error to get as root.</div>
+
+<h2>A hard disk for DOS over the network</h2>
+
+<p><a href="https://www.brutman.com/mTCP/">mTCP NetDrive</a> serves a disk image over UDP: the DOS client loads a small TSR and the image appears as an ordinary drive letter with a full DOS filesystem, not a network redirector. It needs about 8&nbsp;KB resident, which is why it works on machines where nothing else does &mdash; a 286 with no room for a file-sharing stack, or a laptop whose drive bay is dead. It is also fast, because the client is doing plain sector reads and writes instead of translating file operations.</p>
+
+<p>The NetDrive server is Michael Brutman's work and is <strong>not</strong> included in this repository; it is downloaded from his site and dropped onto the appliance.</p>
+
+<h2>Emulators plug in without root</h2>
+
+<p>Run the appliance as a virtual machine and an optional <strong>VDE switch</strong> &mdash; a virtual ethernet segment that lives in user space &mdash; lets QEMU, 86Box and PCem join the isolated network with ordinary user privileges. No bridge, no TAP device, no changes to the host's network configuration, nothing owned by root.</p>
+
+<p>On real hardware the VDE chapter simply does not apply: everything from the router chapter onward is identical, with the share paths pointing at real directories. An old ThinkPad with two network ports will do.</p>
+
+<h2>Installing it</h2>
+
+<p>A VM with 512&nbsp;MB of RAM, about 2&nbsp;GB of disk, two network interfaces and an Alpine Linux ISO. Roughly fifteen minutes, most of it waiting for packages to download.</p>
+
+<pre><code>git clone https://github.com/zirize/alpine-vde-router
+cd alpine-vde-router
+cp config.example.sh config.sh
+nano config.sh                       # addresses, shares, what to install
+
+./scripts/host/vde-switch.sh install # optional: VDE switch for emulators
+./scripts/host/create-vm.sh          # define the VM
+./scripts/host/install-alpine.py     # unattended Alpine install
+./scripts/host/push-scripts.sh       # copy the setup scripts over
+
+ssh root@&lt;the address you set&gt; 'cd /root/setup &amp;&amp; ./install-all.sh'</code></pre>
+
+<p>Any service can be switched off in <code>config.sh</code>. A machine that only needs to be a router is a two-minute install.</p>
+
+<p>If you would rather understand each step than run a script &mdash; which is the point of the repository &mdash; every chapter gives the individual commands to paste by hand. <strong>The scripts and the documentation are the same commands.</strong> Nothing happens off-screen. Each chapter is arranged the same way: what this does, do it, check it (with the output you should see), and the failures people actually hit.</p>
+
+<h2>The documentation</h2>
+
+<table>
+<tr><td><a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/01-overview.md">01 · Overview</a></td><td>how the pieces fit, and what to decide before you start</td></tr>
+<tr><td><a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/02-host-vde-switch.md">02 · The VDE switch</a></td><td>host side; only for emulators, skip on real hardware</td></tr>
+<tr><td><a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/03-create-the-vm.md">03 · Creating the VM</a></td><td>libvirt domain, two NICs, shared folders</td></tr>
+<tr><td><a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/04-install-alpine.md">04 · Installing Alpine</a></td><td>unattended, or by hand</td></tr>
+<tr><td><a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/05-router.md">05 · Router</a></td><td>NAT, DHCP, DNS, firewall</td></tr>
+<tr><td><a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/06-file-sharing.md">06 · File sharing</a></td><td>FTP, SMB1 for Windows 9x, AFP for classic Mac OS</td></tr>
+<tr><td><a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/07-printing.md">07 · Printing</a></td><td>IPP and LPD, printed output as PDF</td></tr>
+<tr><td><a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/08-netdrive.md">08 · NetDrive</a></td><td>a network hard disk for DOS</td></tr>
+<tr><td><a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/09-clients.md">09 · Connecting clients</a></td><td>Windows 98/XP, Mac OS 9, DOS, QEMU, 86Box</td></tr>
+<tr><td><a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/10-physical-server.md">10 · On a physical server</a></td><td>what changes on real hardware</td></tr>
+<tr><td><a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/11-troubleshooting.md">11 · Troubleshooting</a></td><td>symptoms, causes, fixes</td></tr>
+</table>
+
+<p>The <a href="https://github.com/zirize/alpine-vde-router/blob/master/docs/11-troubleshooting.md">troubleshooting chapter</a> is organised as a symptom index: no DHCP, missing NAT, DNS leaking to the outside, Windows 98 not seeing the shares, Mac OS 9 error &minus;50, netatalk reporting a crash, port 631 refused, printing that produces no PDF, an emulator that cannot join the switch.</p>
+
+<h2>Tested on</h2>
+
+<p>Built and verified end to end on Alpine 3.24.2 with libvirt/QEMU on Ubuntu. Every command in the documentation was run on a machine installed from scratch by following the repository.</p>
+
+<p>MIT licensed for the scripts and documentation.</p>
+
+</main>
+<footer>
+  <p>Made by <a href="https://github.com/zirize">zirize</a> &middot; <a href="https://zirize.github.io/">More projects</a></p>
+</footer>
+</body>
+</html>

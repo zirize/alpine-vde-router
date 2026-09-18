@@ -93,6 +93,43 @@ commands.** Nothing happens off-screen.
 | [10 · On a physical server](docs/10-physical-server.md) | What changes on real hardware |
 | [11 · Troubleshooting](docs/11-troubleshooting.md) | Symptoms, causes, fixes |
 
+## Related: the same network without a VM
+
+This appliance runs the router inside a virtual machine, which is the
+straightforward way to do it and what the documentation above describes.
+
+There is another way. VDE ships `vde_router`, a userspace IPv4 router whose
+interfaces are connections to VDE switches rather than kernel devices — so a
+whole routed network can run with no VM, no tap device and no root at all.
+Paired with the slirp plugin for the uplink it is a single process:
+
+```
+connect /tmp/vde0
+connect slirp:///addr=10.1.9.1/dhcp=10.1.9.20
+ifconfig eth0 add 10.1.0.254 255.255.255.0
+ifconfig eth1 add 10.1.9.2 255.255.255.0
+route add default 10.1.9.1
+dhcpd start eth0 10.1.0.20 10.1.0.40
+```
+
+The catch is that `vde_router` as shipped does not forward packets, and
+attaching it to a segment disturbs that segment — unused addresses appear
+reachable and duplicate address detection always reports a conflict, which a
+Windows 98 or Mac OS guest probing at boot will notice.
+
+**Fixed build, with a HOWTO:**
+[github.com/zirize/vde-2](https://github.com/zirize/vde-2) — nine defect fixes,
+a rewritten manual page and `doc/vde_router-HOWTO`. Submitted upstream as
+[virtualsquare/vde-2#74](https://github.com/virtualsquare/vde-2/pull/74) and
+[#75](https://github.com/virtualsquare/vde-2/pull/75); use upstream instead once
+those land.
+
+It does **not** replace this appliance. `vde_router` routes and hands out
+addresses; it has no DNS, no file sharing and no print queue, so the services
+this repository sets up still need somewhere to live. Take it as the answer to
+"can I have the network without running a VM for it", not as a drop-in
+replacement.
+
 ## Status
 
 Built and verified end to end on Alpine 3.24.2 with libvirt/QEMU on Ubuntu.

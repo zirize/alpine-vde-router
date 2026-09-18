@@ -139,6 +139,23 @@ footer{text-align:center;padding:32px 20px;border-top:1px solid var(--border);co
 
 <p>On real hardware the VDE chapter simply does not apply: everything from the router chapter onward is identical, with the share paths pointing at real directories. An old ThinkPad with two network ports will do.</p>
 
+<h2>The same network without a virtual machine</h2>
+
+<p>This appliance runs the router inside a VM, which is the straightforward way and what the documentation describes. There is another way. VDE ships <code>vde_router</code>, a userspace IPv4 router whose interfaces are connections to VDE switches rather than kernel devices &mdash; so a whole routed network can run with <strong>no VM, no TAP device and no root at all</strong>. Paired with the slirp plugin for the uplink it is a single process:</p>
+
+<pre><code>connect /tmp/vde0
+connect slirp:///addr=10.1.9.1/dhcp=10.1.9.20
+ifconfig eth0 add 10.1.0.254 255.255.255.0
+ifconfig eth1 add 10.1.9.2 255.255.255.0
+route add default 10.1.9.1
+dhcpd start eth0 10.1.0.20 10.1.0.40</code></pre>
+
+<p>The catch is that <code>vde_router</code> as shipped does not forward packets at all, and attaching it to a segment disturbs that segment: unused addresses appear reachable and duplicate address detection always reports a conflict &mdash; which a Windows 98 or Mac OS machine probing for its address at boot will notice.</p>
+
+<p>A fixed build, with nine defect fixes, a rewritten manual page and a HOWTO, is at <a href="https://github.com/zirize/vde-2">github.com/zirize/vde-2</a>. The patches are submitted upstream as <a href="https://github.com/virtualsquare/vde-2/pull/74">virtualsquare/vde-2#74</a> and <a href="https://github.com/virtualsquare/vde-2/pull/75">#75</a>; use upstream instead once those land.</p>
+
+<p>It does not replace this appliance. <code>vde_router</code> routes and hands out addresses; it has no DNS, no file sharing and no print queue, so the services set up here still need somewhere to live. Take it as the answer to &ldquo;can I have the network without running a VM for it&rdquo;, not as a drop-in replacement.</p>
+
 <h2>Installing it</h2>
 
 <p>A VM with 512&nbsp;MB of RAM, about 2&nbsp;GB of disk, two network interfaces and an Alpine Linux ISO. Roughly fifteen minutes, most of it waiting for packages to download.</p>

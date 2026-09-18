@@ -54,7 +54,7 @@ ThinkPad with two network ports will do.
 ## Quick start (virtual machine)
 
 ```bash
-git clone https://github.com/YOURNAME/alpine-vde-router
+git clone https://github.com/zirize/alpine-vde-router
 cd alpine-vde-router
 cp config.example.sh config.sh
 nano config.sh                       # addresses, shares, what to install

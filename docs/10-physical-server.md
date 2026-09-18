@@ -111,7 +111,7 @@ There is no host to push from:
 
 ```sh
 apk add git
-git clone https://github.com/YOURNAME/alpine-vde-router /root/setup
+git clone https://github.com/zirize/alpine-vde-router /root/setup
 cd /root/setup
 cp config.example.sh config.sh
 vi config.sh

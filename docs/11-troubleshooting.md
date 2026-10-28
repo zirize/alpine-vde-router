@@ -31,6 +31,7 @@ except netatalk before you have applied the pidfile fix
 | Printing produces no PDF | [Printing](#printing-produces-no-pdf) |
 | Emulator cannot join the switch | [VDE](#emulator-cannot-join-the-switch) |
 | Everything worked, then stopped after `apk upgrade` | [After an upgrade](#after-an-upgrade) |
+| Host shutdown hangs about two minutes while the VM runs | [VM ignores shutdown](#vm-ignores-shutdown) |
 
 ---
 
@@ -242,6 +243,29 @@ cd /root/setup && ./install-all.sh
 ```
 
 Everything in them is written to be idempotent.
+
+## VM ignores shutdown
+
+`virsh shutdown vde` does nothing, and host shutdown waits until libvirt gives
+up and kills the VM. The Alpine `linux-virt` 6.18 kernel creates no ACPI power
+button, so `acpid` never hears the request:
+
+```sh
+grep -c "Power Button" /proc/bus/input/devices   # 0 = affected
+```
+
+Run the guest agent; libvirt tries it before ACPI:
+
+```sh
+apk add qemu-guest-agent
+rc-update add qemu-guest-agent default && rc-service qemu-guest-agent start
+```
+
+From the host, `virsh qemu-agent-command vde '{"execute":"guest-ping"}'` should
+answer `{"return":{}}`, and `virsh shutdown vde` should finish in seconds. If
+the device `/dev/virtio-ports/org.qemu.guest_agent.0` is missing, the VM has no
+agent channel: add one with `virt-xml vde --add-device --channel unix,target.type=virtio,target.name=org.qemu.guest_agent.0`
+and restart the VM.
 
 ## Collecting information before asking for help
 

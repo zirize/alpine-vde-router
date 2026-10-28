@@ -8,6 +8,7 @@ Turns the machine into the router for the isolated network:
 * enables IP forwarding and masquerades outbound traffic through the uplink
 * hands out addresses with DHCP, and answers DNS
 * closes the uplink side down to SSH (plus optional FTP from one address)
+* on a VM, runs the QEMU guest agent so the host can shut it down cleanly
 
 After this chapter an old machine set to "obtain an address automatically" can
 browse the Internet.
@@ -38,6 +39,7 @@ cd /root/setup
 ==> Installing packages
 ==> Making sure the clock is right
     Fri Sep 18 14:30:16 KST 2026
+==> Letting the host shut this VM down
 ==> Giving eth1 its static address
 ==> Turning on IP forwarding
 ==> Configuring the firewall and NAT
@@ -56,6 +58,19 @@ cd /root/setup
 ```sh
 apk add dnsmasq ufw iptables chrony
 rc-update add chronyd default && rc-service chronyd start
+```
+
+**On a VM, the guest agent.** Without it the host cannot shut the VM down:
+the Alpine `linux-virt` 6.18 kernel creates no ACPI power button, so `acpid`
+never hears the request, and at host shutdown libvirt waits out its timeout
+(120 s by default) and then kills the VM. libvirt asks the guest agent first,
+and that path works. `virt-install` adds the agent channel by default; the
+script installs the agent only when `/dev/virtio-ports/org.qemu.guest_agent.0`
+exists, so a physical server skips it.
+
+```sh
+apk add qemu-guest-agent
+rc-update add qemu-guest-agent default && rc-service qemu-guest-agent start
 ```
 
 **The isolated interface.** Append to `/etc/network/interfaces`:

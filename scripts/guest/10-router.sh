@@ -38,6 +38,15 @@ apk_add chrony
 svc chronyd || warn "chronyd did not start; check 'rc-service chronyd status'"
 info "$(date)"
 
+if [ -e /dev/virtio-ports/org.qemu.guest_agent.0 ]; then
+    say "Letting the host shut this VM down"
+    # The linux-virt 6.18 kernel creates no ACPI power button, so acpid never
+    # sees the host's shutdown request and libvirt kills the VM after its
+    # timeout. libvirt asks the guest agent first, which still works.
+    apk_add qemu-guest-agent
+    svc qemu-guest-agent || true
+fi
+
 say "Giving $LAN_IF its static address"
 if ! grep -q "^iface $LAN_IF " /etc/network/interfaces; then
     cat >> /etc/network/interfaces <<IFEOF
